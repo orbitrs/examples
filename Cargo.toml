@@ -1,0 +1,43 @@
+[package]
+name = "orbit-examples"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+orbit = { path = "../orbit" }
+winit = "0.27.0"
+
+# Add example binaries
+[[example]]
+name = "props_minimal"
+path = "src/props_minimal.rs"
+
+[[example]]
+name = "props_example"
+path = "src/props_example.rs"
+
+[[example]]
+name = "props_and_events"
+path = "src/props_and_events.rs"
+
+[[example]]
+name = "component_lifecycle"
+path = "src/component_lifecycle.rs"
+
+[[example]]
+name = "advanced_skia"
+path = "src/advanced_skia.rs"
+
+# Test examples are in tests directory
+[[example]]
+name = "skia_test"
+path = "tests/skia_test.rs"
+
+[[example]]
+name = "wgpu_renderer"
+path = "src/wgpu_renderer.rs"
+
+[[example]]
+name = "window_test"
+path = "tests/window_test.rs"
