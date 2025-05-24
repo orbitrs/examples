@@ -3,17 +3,17 @@
 
 use std::sync::{Arc, Mutex, RwLock};
 use orbit::component::{Component, ComponentError, Context, Node};
-use orbit::state::reactive::{Signal, SignalRead};
+use orbit::state::ThreadSafeSignal;
 
 // A simple counter with advanced reactive state features
 struct AdvancedCounter {
     context: Context,
     // Base counter state using thread-safe RwLock
     count: Arc<RwLock<i32>>,
-    // Derived state that depends on count
-    square: Signal<i32>,
-    // Cached computation that depends on square
-    is_even: Signal<bool>,
+    // Thread-safe state for square
+    square: Arc<ThreadSafeSignal<i32>>,
+    // Thread-safe state for is_even
+    is_even: Arc<ThreadSafeSignal<bool>>,
     // Shared state that could be accessed from other components
     shared_total: Arc<Mutex<i32>>,
 }
@@ -32,22 +32,12 @@ impl Component for AdvancedCounter {
         // Initialize base state
         let count = Arc::new(RwLock::new(props.initial));
         
-        // Create a reference for closures
-        let count_ref = count.clone();
+        // Calculate initial square value
+        let initial_square = props.initial * props.initial;
         
-        // Create a derived signal that computes the square of count
-        let square = Signal::derive(move || {
-            let count_guard = count_ref.read().unwrap_or_else(|_| panic!("Failed to read count"));
-            *count_guard * *count_guard
-        });
-        
-        // Create another derived signal that depends on the first derived signal
-        let square_ref = square.clone();
-        let is_even = Signal::derive(move || {
-            // Read the derived value
-            let square_val = square_ref.get();
-            square_val % 2 == 0
-        });
+        // Create thread-safe signals with initial values
+        let square = ThreadSafeSignal::new(initial_square);
+        let is_even = ThreadSafeSignal::new(initial_square % 2 == 0);
         
         Self {
             context,
@@ -60,13 +50,13 @@ impl Component for AdvancedCounter {
     
     fn initialize(&mut self) -> Result<(), ComponentError> {
         println!("AdvancedCounter initialized with count: {}", self.get_count().unwrap());
-        println!("Square value: {}", self.square.get());
-        println!("Is even: {}", self.is_even.get());
+        println!("Square value: {}", self.square.get().unwrap_or(-1));
+        println!("Is even: {}", self.is_even.get().unwrap_or(false));
         
         // Register lifecycle hooks
         let is_even = self.is_even.clone();
         self.context.on_update(move |_| {
-            println!("Component updated, is_even: {}", is_even.get());
+            println!("Component updated, is_even: {}", is_even.get().unwrap_or(false));
         });
         
         Ok(())
@@ -75,11 +65,20 @@ impl Component for AdvancedCounter {
     fn update(&mut self, props: Self::Props) -> Result<(), ComponentError> {
         if let Ok(mut count) = self.count.write() {
             *count = props.initial;
+            
+            // Update the square value manually
+            let square_value = props.initial * props.initial;
+            if let Err(e) = self.square.set(square_value) {
+                return Err(ComponentError::UpdateError(format!("Failed to update square: {}", e)));
+            }
+            
+            // Update is_even manually
+            if let Err(e) = self.is_even.set(square_value % 2 == 0) {
+                return Err(ComponentError::UpdateError(format!("Failed to update is_even: {}", e)));
+            }
         } else {
             return Err(ComponentError::UpdateError("Failed to update count".into()));
         }
-        
-        // Note: derived signals will automatically update
         
         Ok(())
     }
@@ -88,8 +87,8 @@ impl Component for AdvancedCounter {
         // In a real app, this would render DOM nodes
         println!("Rendering AdvancedCounter:");
         println!("  Count: {}", self.get_count().unwrap());
-        println!("  Square: {}", self.square.get());
-        println!("  Is even: {}", self.is_even.get());
+        println!("  Square: {}", self.square.get().unwrap_or(-1));
+        println!("  Is even: {}", self.is_even.get().unwrap_or(false));
         
         Ok(vec![])
     }
@@ -114,8 +113,10 @@ impl AdvancedCounter {
                 *total += 1;
             }
             
-            // Note: No need to manually update derived values,
-            // they will update automatically when accessed
+            // Manually update the signals
+            let new_square = *count * *count;
+            let _ = self.square.set(new_square);
+            let _ = self.is_even.set(new_square % 2 == 0);
         }
     }
     
@@ -129,6 +130,11 @@ impl AdvancedCounter {
             if let Ok(mut total) = self.shared_total.lock() {
                 *total -= 1;
             }
+            
+            // Manually update the signals
+            let new_square = *count * *count;
+            let _ = self.square.set(new_square);
+            let _ = self.is_even.set(new_square % 2 == 0);
         }
     }
     
@@ -140,14 +146,14 @@ impl AdvancedCounter {
         }
     }
     
-    // Get the square value directly from the derived signal
-    pub fn get_square(&self) -> i32 {
-        self.square.get()
+    // Get the square value directly from the ThreadSafeSignal
+    pub fn get_square(&self) -> Result<i32, &str> {
+        self.square.get().map_err(|_| "Failed to read square signal")
     }
     
     // Check if the current square value is even
-    pub fn is_square_even(&self) -> bool {
-        self.is_even.get()
+    pub fn is_square_even(&self) -> Result<bool, &str> {
+        self.is_even.get().map_err(|_| "Failed to read is_even signal")
     }
     
     // Get the shared total value
@@ -173,6 +179,12 @@ impl Component for SharedStateComponent {
             context,
             shared_total: props,
         }
+    }
+    
+    fn update(&mut self, props: Self::Props) -> Result<(), ComponentError> {
+        // Update the shared state reference
+        self.shared_total = props;
+        Ok(())
     }
     
     fn render(&self) -> Result<Vec<Node>, ComponentError> {
