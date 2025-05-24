@@ -4,6 +4,11 @@ version = "0.1.0"
 edition = "2021"
 publish = false
 
+[features]
+default = ["desktop"]
+desktop = ["orbit/desktop"]
+web = ["orbit/web"]
+
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 orbit = { path = "../orbit", default-features = false, features = ["desktop"] }
 winit = "0.27.0"
