@@ -2,7 +2,9 @@
 //! Shows how to use signals, effects, and computed values with the reactive system
 
 use orbit::component::{Component, ComponentError, Context, Node};
-use orbit::state::{create_signal, create_effect, create_computed, ReactiveScope, Signal, Effect, ReactiveComputed};
+use orbit::state::{
+    create_computed, create_effect, create_signal, Effect, ReactiveComputed, ReactiveScope, Signal,
+};
 use std::cell::RefCell;
 use std::rc::Rc;
 
@@ -27,34 +29,43 @@ impl Component for ReactiveCounter {
 
     fn create(props: Self::Props, context: Context) -> Self {
         let scope = ReactiveScope::new();
-        
+
         // Create the base signal
         let count = create_signal(&scope, props.initial);
-        
+
         // Create computed values that depend on the count
         let count_value = count.value.clone();
-        let square = create_computed(&scope, Box::new(move || {
-            let val = *count_value.borrow();
-            val * val
-        }));
-        
+        let square = create_computed(
+            &scope,
+            Box::new(move || {
+                let val = *count_value.borrow();
+                val * val
+            }),
+        );
+
         let count_value2 = count.value.clone();
-        let is_even = create_computed(&scope, Box::new(move || {
-            let val = *count_value2.borrow();
-            let square_val = val * val;
-            square_val % 2 == 0
-        }));
+        let is_even = create_computed(
+            &scope,
+            Box::new(move || {
+                let val = *count_value2.borrow();
+                let square_val = val * val;
+                square_val % 2 == 0
+            }),
+        );
 
         // Create an effect that logs changes
         let count_value3 = count.value.clone();
         let log_counter = Rc::new(RefCell::new(0));
         let log_counter_clone = log_counter.clone();
-        let effect = create_effect(&scope, Box::new(move || {
-            let val = *count_value3.borrow();
-            let mut counter = log_counter_clone.borrow_mut();
-            *counter += 1;
-            println!("Effect #{}: Count changed to {}", *counter, val);
-        }));
+        let effect = create_effect(
+            &scope,
+            Box::new(move || {
+                let val = *count_value3.borrow();
+                let mut counter = log_counter_clone.borrow_mut();
+                *counter += 1;
+                println!("Effect #{}: Count changed to {}", *counter, val);
+            }),
+        );
 
         Self {
             context,
@@ -87,13 +98,13 @@ impl Component for ReactiveCounter {
         // In a real app, this would render DOM nodes
         println!("Rendering ReactiveCounter:");
         println!("  Count: {}", *self.count.get());
-        
+
         if let Ok(square) = self.square.get() {
             println!("  Square: {}", *square);
         } else {
             println!("  Square: [error computing value]");
         }
-        
+
         if let Ok(is_even) = self.is_even.get() {
             println!("  Is even: {}", *is_even);
         } else {
@@ -148,10 +159,7 @@ fn main() {
     let context = Context::new();
 
     // Create our reactive counter component
-    let mut counter = ReactiveCounter::create(
-        ReactiveCounterProps { initial: 3 },
-        context,
-    );
+    let mut counter = ReactiveCounter::create(ReactiveCounterProps { initial: 3 }, context);
 
     // Initialize component
     counter.initialize().expect("Failed to initialize counter");

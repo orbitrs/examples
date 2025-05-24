@@ -37,10 +37,6 @@ path = "src/wgpu_renderer.rs"
 name = "advanced_state_management"
 path = "src/advanced_state_management.rs"
 
-[[example]]
-name = "reactive_counter_example"
-path = "src/reactive_counter_example.rs"
-
 # Dummy library crate for organization
 [lib]
 path = "src/lib.rs"
