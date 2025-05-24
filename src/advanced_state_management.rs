@@ -159,6 +159,7 @@ impl AdvancedCounter {
     }
 
     // Get the square value directly from the ThreadSafeSignal
+    #[allow(dead_code)]
     pub fn get_square(&self) -> Result<i32, &str> {
         self.square
             .get()
@@ -166,6 +167,7 @@ impl AdvancedCounter {
     }
 
     // Check if the current square value is even
+    #[allow(dead_code)]
     pub fn is_square_even(&self) -> Result<bool, &str> {
         self.is_even
             .get()
@@ -173,6 +175,7 @@ impl AdvancedCounter {
     }
 
     // Get the shared total value
+    #[allow(dead_code)]
     pub fn get_shared_total(&self) -> Result<i32, &str> {
         match self.shared_total.lock() {
             Ok(total) => Ok(*total),
@@ -183,6 +186,7 @@ impl AdvancedCounter {
 
 /// A component that shares state with the counter
 struct SharedStateComponent {
+    #[allow(dead_code)]
     context: Context,
     shared_total: Arc<Mutex<i32>>,
 }

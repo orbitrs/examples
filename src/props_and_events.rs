@@ -84,6 +84,12 @@ pub struct Node {
     pub children: Vec<Node>,
 }
 
+impl Default for Node {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Node {
     pub fn new() -> Self {
         Self {
@@ -133,6 +139,12 @@ pub struct ButtonProps {
     pub disabled: bool,
     pub primary: bool,
     pub on_click: Option<Callback<MouseEvent>>,
+}
+
+impl Default for ButtonProps {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl ButtonProps {
@@ -209,6 +221,12 @@ impl PropValidator<ButtonProps> for ButtonPropsValidator {
 
 // Simple Context struct
 pub struct Context;
+
+impl Default for Context {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl Context {
     pub fn new() -> Self {
