@@ -1,22 +1,19 @@
-//! Example demonstrating the new scope-based reactive system in OrbitRS
-//! Shows how to use signals, effects, and computed values with the reactive system
+//! Example demonstrating thread-safe reactive patterns in OrbitRS
+//! Shows how to manage derived values with thread-safe primitives
 
 use orbit::component::{Component, ComponentError, Context, Node};
-use orbit::state::{
-    create_computed, create_effect, create_signal, Effect, ReactiveComputed, ReactiveScope, Signal,
-};
-use std::cell::RefCell;
-use std::rc::Rc;
+use std::sync::{Arc, RwLock};
 
-/// A reactive counter component using the new reactive system
+/// A reactive counter component using thread-safe primitives instead of the non-thread-safe reactive system
 struct ReactiveCounter {
-    context: Context,
-    scope: ReactiveScope,
-    count: Signal<i32>,
-    square: ReactiveComputed<i32, Box<dyn FnMut() -> i32>>,
-    is_even: ReactiveComputed<bool, Box<dyn FnMut() -> bool>>,
     #[allow(dead_code)]
-    effect: Effect<Box<dyn FnMut()>>,
+    context: Context,
+    // Base counter state
+    count: Arc<RwLock<i32>>,
+    // Derived state for square value
+    square: Arc<RwLock<i32>>,
+    // Derived state for is_even
+    is_even: Arc<RwLock<bool>>,
 }
 
 #[derive(Clone)]
@@ -26,89 +23,96 @@ struct ReactiveCounterProps {
 
 impl Component for ReactiveCounter {
     type Props = ReactiveCounterProps;
+    
+    fn component_id(&self) -> orbit::component::ComponentId {
+        orbit::component::ComponentId::new()
+    }
 
     fn create(props: Self::Props, context: Context) -> Self {
-        let scope = ReactiveScope::new();
+        // Initialize base state with thread-safe containers
+        let count = Arc::new(RwLock::new(props.initial));
+        
+        // Calculate initial derived values
+        let initial_square = props.initial * props.initial;
+        let square = Arc::new(RwLock::new(initial_square));
+        
+        // Calculate if even
+        let is_even = Arc::new(RwLock::new(initial_square % 2 == 0));
 
-        // Create the base signal
-        let count = create_signal(&scope, props.initial);
-
-        // Create computed values that depend on the count
-        let count_value = count.value.clone();
-        let square = create_computed(
-            &scope,
-            Box::new(move || {
-                let val = *count_value.borrow();
-                val * val
-            }),
-        );
-
-        let count_value2 = count.value.clone();
-        let is_even = create_computed(
-            &scope,
-            Box::new(move || {
-                let val = *count_value2.borrow();
-                let square_val = val * val;
-                square_val % 2 == 0
-            }),
-        );
-
-        // Create an effect that logs changes
-        let count_value3 = count.value.clone();
-        let log_counter = Rc::new(RefCell::new(0));
-        let log_counter_clone = log_counter.clone();
-        let effect = create_effect(
-            &scope,
-            Box::new(move || {
-                let val = *count_value3.borrow();
-                let mut counter = log_counter_clone.borrow_mut();
-                *counter += 1;
-                println!("Effect #{}: Count changed to {}", *counter, val);
-            }),
-        );
+        // Log initial state (replacing the effect)
+        println!("Initial counter state: value={}, square={}, is_even={}", 
+                 props.initial, initial_square, initial_square % 2 == 0);
 
         Self {
             context,
-            scope,
             count,
             square,
             is_even,
-            effect,
         }
     }
 
     fn initialize(&mut self) -> Result<(), ComponentError> {
-        println!(
-            "ReactiveCounter initialized with count: {}",
-            *self.count.get()
-        );
-        println!("Square value: {}", *self.square.get().unwrap());
-        println!("Is even: {}", *self.is_even.get().unwrap());
+        let count = match self.count.read() {
+            Ok(guard) => *guard,
+            Err(_) => return Err(ComponentError::MountError("Failed to read count".into())),
+        };
+        
+        println!("ReactiveCounter initialized with count: {}", count);
+        
+        if let Ok(square) = self.square.read() {
+            println!("Square value: {}", *square);
+        }
+        
+        if let Ok(is_even) = self.is_even.read() {
+            println!("Is even: {}", *is_even);
+        }
 
         Ok(())
     }
 
     fn update(&mut self, props: Self::Props) -> Result<(), ComponentError> {
-        // Update the signal value - this should trigger all dependent computations
-        self.count.set(props.initial)?;
-        Ok(())
+        // Update the count value
+        if let Ok(mut count) = self.count.write() {
+            *count = props.initial;
+            
+            // Update derived values
+            let new_square = props.initial * props.initial;
+            
+            if let Ok(mut square) = self.square.write() {
+                *square = new_square;
+            } else {
+                return Err(ComponentError::UpdateError("Failed to update square".into()));
+            }
+            
+            if let Ok(mut is_even) = self.is_even.write() {
+                *is_even = new_square % 2 == 0;
+            } else {
+                return Err(ComponentError::UpdateError("Failed to update is_even".into()));
+            }
+            
+            Ok(())
+        } else {
+            Err(ComponentError::UpdateError("Failed to update count".into()))
+        }
     }
 
     fn render(&self) -> Result<Vec<Node>, ComponentError> {
         // In a real app, this would render DOM nodes
         println!("Rendering ReactiveCounter:");
-        println!("  Count: {}", *self.count.get());
-
-        if let Ok(square) = self.square.get() {
-            println!("  Square: {}", *square);
-        } else {
-            println!("  Square: [error computing value]");
+        
+        match self.count.read() {
+            Ok(count) => println!("  Count: {}", *count),
+            Err(_) => println!("  Count: [error reading value]"),
         }
-
-        if let Ok(is_even) = self.is_even.get() {
-            println!("  Is even: {}", *is_even);
-        } else {
-            println!("  Is even: [error computing value]");
+        
+        match self.square.read() {
+            Ok(square) => println!("  Square: {}", *square),
+            Err(_) => println!("  Square: [error reading value]"),
+        }
+        
+        match self.is_even.read() {
+            Ok(is_even) => println!("  Is even: {}", *is_even),
+            Err(_) => println!("  Is even: [error reading value]"),
         }
 
         Ok(vec![])
@@ -124,31 +128,78 @@ impl Component for ReactiveCounter {
 }
 
 impl ReactiveCounter {
-    /// Increment the counter using reactive signals
-    pub fn increment(&self) -> Result<(), orbit::state::SignalError> {
-        let current = *self.count.get();
-        self.count.set(current + 1)
+    /// Increment the counter and update derived values
+    pub fn increment(&self) -> Result<(), ComponentError> {
+        if let Ok(mut count) = self.count.write() {
+            *count += 1;
+            
+            // Update derived values
+            let new_square = *count * *count;
+            
+            if let Ok(mut square) = self.square.write() {
+                *square = new_square;
+                
+                if let Ok(mut is_even) = self.is_even.write() {
+                    *is_even = new_square % 2 == 0;
+                    Ok(())
+                } else {
+                    Err(ComponentError::UpdateError("Failed to update is_even".into()))
+                }
+            } else {
+                Err(ComponentError::UpdateError("Failed to update square".into()))
+            }
+        } else {
+            Err(ComponentError::UpdateError("Failed to update count".into()))
+        }
     }
 
-    /// Decrement the counter using reactive signals
-    pub fn decrement(&self) -> Result<(), orbit::state::SignalError> {
-        let current = *self.count.get();
-        self.count.set(current - 1)
+    /// Decrement the counter and update derived values
+    pub fn decrement(&self) -> Result<(), ComponentError> {
+        if let Ok(mut count) = self.count.write() {
+            *count -= 1;
+            
+            // Update derived values
+            let new_square = *count * *count;
+            
+            if let Ok(mut square) = self.square.write() {
+                *square = new_square;
+                
+                if let Ok(mut is_even) = self.is_even.write() {
+                    *is_even = new_square % 2 == 0;
+                    Ok(())
+                } else {
+                    Err(ComponentError::UpdateError("Failed to update is_even".into()))
+                }
+            } else {
+                Err(ComponentError::UpdateError("Failed to update square".into()))
+            }
+        } else {
+            Err(ComponentError::UpdateError("Failed to update count".into()))
+        }
     }
 
     /// Get the current count
     pub fn get_count(&self) -> i32 {
-        *self.count.get()
+        match self.count.read() {
+            Ok(count) => *count,
+            Err(_) => -1, // Error case
+        }
     }
 
     /// Get the current square value
-    pub fn get_square(&self) -> Result<i32, orbit::state::SignalError> {
-        self.square.get().map(|val| *val)
+    pub fn get_square(&self) -> Result<i32, ComponentError> {
+        match self.square.read() {
+            Ok(square) => Ok(*square),
+            Err(_) => Err(ComponentError::RenderError("Failed to read square".into())),
+        }
     }
 
     /// Check if the current square value is even
-    pub fn is_square_even(&self) -> Result<bool, orbit::state::SignalError> {
-        self.is_even.get().map(|val| *val)
+    pub fn is_square_even(&self) -> Result<bool, ComponentError> {
+        match self.is_even.read() {
+            Ok(is_even) => Ok(*is_even),
+            Err(_) => Err(ComponentError::RenderError("Failed to read is_even".into())),
+        }
     }
 }
 

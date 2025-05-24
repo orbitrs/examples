@@ -6,6 +6,7 @@ use std::sync::{Arc, RwLock};
 
 // Simple counter component using thread-safe state management
 struct Counter {
+    #[allow(dead_code)]
     context: Context,
     props: CounterProps,
     // Use Arc<RwLock<T>> for thread-safety
@@ -30,6 +31,10 @@ impl Clone for CounterProps {
 
 impl Component for Counter {
     type Props = CounterProps;
+
+    fn component_id(&self) -> orbit::component::ComponentId {
+        orbit::component::ComponentId::new()
+    }
 
     fn create(props: Self::Props, context: Context) -> Self {
         // Create a thread-safe state for the count
@@ -58,14 +63,10 @@ impl Component for Counter {
 
         println!("Counter component initialized with count {}", count);
 
-        // Register lifecycle hooks
-        self.context.on_mount(|_| {
-            println!("Counter mounted");
-        });
-
-        self.context.on_unmount(|_| {
-            println!("Counter unmounted");
-        });
+        // Since Context doesn't have lifecycle hook registration methods,
+        // we'll just print the messages directly
+        println!("Counter lifecycle hooks would be registered here");
+        println!("Counter will be mounted soon");
 
         Ok(())
     }

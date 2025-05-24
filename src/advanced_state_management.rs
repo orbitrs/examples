@@ -10,6 +10,7 @@ use std::sync::{Arc, Mutex, RwLock};
 
 // A simple counter with advanced state management features
 struct AdvancedCounter {
+    #[allow(dead_code)]
     context: Context,
     // Base counter state using thread-safe RwLock
     count: Arc<RwLock<i32>>,
@@ -30,6 +31,10 @@ struct CounterProps {
 
 impl Component for AdvancedCounter {
     type Props = CounterProps;
+
+    fn component_id(&self) -> orbit::component::ComponentId {
+        orbit::component::ComponentId::new()
+    }
 
     fn create(props: Self::Props, context: Context) -> Self {
         // Initialize base state with thread-safe containers
@@ -59,20 +64,13 @@ impl Component for AdvancedCounter {
         println!("Square value: {}", self.get_square().unwrap());
         println!("Is even: {}", self.is_square_even().unwrap());
 
-        // Register lifecycle hooks using clone of Arc references
-        let count_for_hook = self.count.clone();
-        let square_for_hook = self.square.clone();
-        let is_even_for_hook = self.is_even.clone();
-
-        self.context.on_update(move |_| {
-            if let Ok(count) = count_for_hook.read() {
-                println!("Component updated, count: {}", *count);
-                if let (Ok(square), Ok(is_even)) = (square_for_hook.read(), is_even_for_hook.read())
-                {
-                    println!("Square: {}, is_even: {}", *square, *is_even);
-                }
+        // Print state values directly since Context doesn't have lifecycle hooks in this version
+        if let Ok(count) = self.count.read() {
+            println!("Component initialized, count: {}", *count);
+            if let (Ok(square), Ok(is_even)) = (self.square.read(), self.is_even.read()) {
+                println!("Square: {}, is_even: {}", *square, *is_even);
             }
-        });
+        }
 
         Ok(())
     }
@@ -233,6 +231,10 @@ struct SharedStateComponent {
 
 impl Component for SharedStateComponent {
     type Props = Arc<Mutex<i32>>;
+
+    fn component_id(&self) -> orbit::component::ComponentId {
+        orbit::component::ComponentId::new()
+    }
 
     fn create(props: Self::Props, context: Context) -> Self {
         Self {
