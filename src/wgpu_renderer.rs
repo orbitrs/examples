@@ -18,6 +18,10 @@ pub struct Scene3D {
 impl Component for Scene3D {
     type Props = ();
 
+    fn component_id(&self) -> orbit::component::ComponentId {
+        orbit::component::ComponentId::new()
+    }
+
     fn create(_props: Self::Props, context: Context) -> Self {
         Self {
             context,
