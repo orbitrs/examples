@@ -1,6 +1,6 @@
 //! Example demonstrating advanced state management patterns in OrbitRS
 //! Shows thread-safe state with derived values, computed properties, and shared state
-//! 
+//!
 //! NOTE: This example is temporarily using direct thread-safe primitives while the reactive system
 //! is being redesigned. It will be updated to use the new reactive system once it supports
 //! thread-safe operations.
@@ -34,11 +34,11 @@ impl Component for AdvancedCounter {
     fn create(props: Self::Props, context: Context) -> Self {
         // Initialize base state with thread-safe containers
         let count = Arc::new(RwLock::new(props.initial));
-        
+
         // Calculate initial square value
         let initial_square = props.initial * props.initial;
         let square = Arc::new(RwLock::new(initial_square));
-        
+
         // Calculate if even
         let is_even = Arc::new(RwLock::new(initial_square % 2 == 0));
 
@@ -63,11 +63,12 @@ impl Component for AdvancedCounter {
         let count_for_hook = self.count.clone();
         let square_for_hook = self.square.clone();
         let is_even_for_hook = self.is_even.clone();
-        
+
         self.context.on_update(move |_| {
             if let Ok(count) = count_for_hook.read() {
                 println!("Component updated, count: {}", *count);
-                if let (Ok(square), Ok(is_even)) = (square_for_hook.read(), is_even_for_hook.read()) {
+                if let (Ok(square), Ok(is_even)) = (square_for_hook.read(), is_even_for_hook.read())
+                {
                     println!("Square: {}, is_even: {}", *square, *is_even);
                 }
             }
@@ -85,14 +86,18 @@ impl Component for AdvancedCounter {
             if let Ok(mut square) = self.square.write() {
                 *square = square_value;
             } else {
-                return Err(ComponentError::UpdateError("Failed to update square".into()));
+                return Err(ComponentError::UpdateError(
+                    "Failed to update square".into(),
+                ));
             }
 
             // Update is_even manually
             if let Ok(mut is_even) = self.is_even.write() {
                 *is_even = square_value % 2 == 0;
             } else {
-                return Err(ComponentError::UpdateError("Failed to update is_even".into()));
+                return Err(ComponentError::UpdateError(
+                    "Failed to update is_even".into(),
+                ));
             }
         } else {
             return Err(ComponentError::UpdateError("Failed to update count".into()));
@@ -105,14 +110,14 @@ impl Component for AdvancedCounter {
         // In a real app, this would render DOM nodes
         println!("Rendering AdvancedCounter:");
         println!("  Count: {}", self.get_count().unwrap());
-        
+
         // Use proper RwLock::read() method instead of non-existent get() method
         if let Ok(square) = self.square.read() {
             println!("  Square: {}", *square);
         } else {
             println!("  Square: [error reading value]");
         }
-        
+
         if let Ok(is_even) = self.is_even.read() {
             println!("  Is even: {}", *is_even);
         } else {
@@ -144,12 +149,12 @@ impl AdvancedCounter {
 
             // Manually update the derived values
             let new_square = *count * *count;
-            
+
             // Update square value
             if let Ok(mut square) = self.square.write() {
                 *square = new_square;
             }
-            
+
             // Update is_even value
             if let Ok(mut is_even) = self.is_even.write() {
                 *is_even = new_square % 2 == 0;
@@ -170,12 +175,12 @@ impl AdvancedCounter {
 
             // Manually update the derived values
             let new_square = *count * *count;
-            
+
             // Update square value
             if let Ok(mut square) = self.square.write() {
                 *square = new_square;
             }
-            
+
             // Update is_even value
             if let Ok(mut is_even) = self.is_even.write() {
                 *is_even = new_square % 2 == 0;
