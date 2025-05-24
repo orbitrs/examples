@@ -192,6 +192,7 @@ pub trait PropValidator<P> {
 }
 
 // Create a validator for ButtonProps
+#[allow(dead_code)] // Used in example code below
 struct ButtonPropsValidator;
 
 impl PropValidator<ButtonProps> for ButtonPropsValidator {
@@ -276,6 +277,7 @@ pub trait Component {
 
 /// Button component with enhanced props and event handling
 pub struct Button {
+    #[allow(dead_code)] // Context would be used in a real component for lifecycle events
     context: Context,
     props: ButtonProps,
     click_count: State<i32>,
@@ -364,6 +366,7 @@ impl Component for Button {
 /// A form component that demonstrates parent-child communication
 pub struct Form {
     context: Context,
+    #[allow(dead_code)] // Would be used in a complete form implementation
     submitted: State<bool>,
 }
 

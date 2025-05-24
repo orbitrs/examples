@@ -186,6 +186,7 @@ impl Counter {
     }
 
     // Method to decrement the counter
+    #[allow(dead_code)] // Included for example purposes even though not used in this demo
     pub fn decrement(&mut self) {
         match self.count.write() {
             Ok(mut count) => {

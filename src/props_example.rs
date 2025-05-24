@@ -55,7 +55,7 @@ fn main() {
 
     // Build the props with validation
     match props_builder.build() {
-        Ok(props) => {
+        Ok(_props) => {
             println!("Validated props successfully");
         }
         Err(e) => {

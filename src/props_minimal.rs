@@ -1,4 +1,4 @@
-use orbit::component::props::*;
+// Only import the define_props macro which we're actually using
 use orbit::define_props;
 
 // Example using the basic props macro
