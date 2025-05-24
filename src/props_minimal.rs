@@ -1,5 +1,5 @@
-use orbit::define_props;
 use orbit::component::props::*;
+use orbit::define_props;
 
 // Example using the basic props macro
 define_props! {
@@ -19,14 +19,18 @@ fn main() {
         disabled: false,
         size: "large".to_string(),
     };
-    
-    println!("Basic props: label={}, disabled={}, size={}", 
-             props.label, props.disabled, props.size);
+
+    println!(
+        "Basic props: label={}, disabled={}, size={}",
+        props.label, props.disabled, props.size
+    );
 
     // Using builder pattern
     let props_builder = ButtonProps::builder();
     let props = props_builder.build().unwrap();
-    
-    println!("Builder props: label={}, disabled={}, size={}", 
-             props.label, props.disabled, props.size);
+
+    println!(
+        "Builder props: label={}, disabled={}, size={}",
+        props.label, props.disabled, props.size
+    );
 }

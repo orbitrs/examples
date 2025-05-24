@@ -1,5 +1,5 @@
 [package]
-name = "orbit-examples"
+name = "examples"
 version = "0.1.0"
 edition = "2021"
 publish = false
@@ -29,15 +29,10 @@ path = "src/component_lifecycle.rs"
 name = "advanced_skia"
 path = "src/advanced_skia.rs"
 
-# Test examples are in tests directory
-[[example]]
-name = "skia_test"
-path = "tests/skia_test.rs"
-
 [[example]]
 name = "wgpu_renderer"
 path = "src/wgpu_renderer.rs"
 
-[[example]]
-name = "window_test"
-path = "tests/window_test.rs"
+# Dummy library crate for organization
+[lib]
+path = "src/lib.rs"

@@ -1,9 +1,9 @@
 //! Example demonstrating the enhanced props and event handling system
 
-use std::cell::Cell;
-use std::sync::Arc;
-use std::collections::HashMap;
 use std::any::Any;
+use std::cell::Cell;
+use std::collections::HashMap;
+use std::sync::Arc;
 
 // Import the minimum required from orbit
 use orbit::prelude::MouseButton;
@@ -14,14 +14,22 @@ pub struct Callback<T> {
     f: Arc<dyn Fn(T) + Send + Sync>,
 }
 
+impl<T> std::fmt::Debug for Callback<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Callback")
+            .field("f", &"<function>")
+            .finish()
+    }
+}
+
 impl<T: Clone + 'static> Callback<T> {
-    pub fn new<F>(f: F) -> Self 
+    pub fn new<F>(f: F) -> Self
     where
         F: Fn(T) + Send + Sync + 'static,
     {
         Self { f: Arc::new(f) }
     }
-    
+
     pub fn call(&self, value: T) {
         (self.f)(value);
     }
@@ -39,11 +47,11 @@ impl<T: Copy + 'static> State<T> {
             value: Arc::new(Cell::new(initial)),
         }
     }
-    
+
     pub fn get(&self) -> T {
         self.value.get()
     }
-    
+
     pub fn set(&self, new_value: T) {
         self.value.set(new_value);
     }
@@ -87,7 +95,7 @@ impl Node {
     pub fn add_child(&mut self, child: Node) {
         self.children.push(child);
     }
-    
+
     pub fn children(&self) -> &[Node] {
         &self.children
     }
@@ -108,11 +116,11 @@ impl<T: Clone> DelegatedEvent<T> {
             default_prevented: false,
         }
     }
-    
+
     pub fn stop_propagation(&mut self) {
         self.propagation_stopped = true;
     }
-    
+
     pub fn prevent_default(&mut self) {
         self.default_prevented = true;
     }
@@ -137,23 +145,23 @@ impl ButtonProps {
             on_click: None,
         }
     }
-    
+
     // Builder pattern methods
     pub fn label(mut self, label: String) -> Self {
         self.label = label;
         self
     }
-    
+
     pub fn disabled(mut self, disabled: bool) -> Self {
         self.disabled = disabled;
         self
     }
-    
+
     pub fn primary(mut self, primary: bool) -> Self {
         self.primary = primary;
         self
     }
-    
+
     pub fn on_click(mut self, on_click: Option<Callback<MouseEvent>>) -> Self {
         self.on_click = on_click;
         self
@@ -163,11 +171,20 @@ impl ButtonProps {
 // ValidationError type
 #[derive(Debug)]
 pub enum PropValidationError {
-    InvalidValue {
-        name: String,
-        reason: String,
-    },
+    InvalidValue { name: String, reason: String },
 }
+
+impl std::fmt::Display for PropValidationError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            PropValidationError::InvalidValue { name, reason } => {
+                write!(f, "Invalid value for '{}': {}", name, reason)
+            }
+        }
+    }
+}
+
+impl std::error::Error for PropValidationError {}
 
 // Validator trait
 pub trait PropValidator<P> {
@@ -196,18 +213,18 @@ impl Context {
     pub fn new() -> Self {
         Self {}
     }
-    
+
     pub fn with_parent(_parent: &Context) -> Self {
         Self {}
     }
-    
+
     pub fn on_mount<F>(&self, f: F)
     where
         F: FnOnce(&Context) + 'static,
     {
         f(self);
     }
-    
+
     pub fn on_unmount<F>(&self, _f: F)
     where
         F: FnOnce(&Context) + 'static,
@@ -222,6 +239,24 @@ pub enum ComponentError {
     ValidationError(PropValidationError),
 }
 
+impl std::fmt::Display for ComponentError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ComponentError::ValidationError(err) => {
+                write!(f, "Component validation error: {}", err)
+            }
+        }
+    }
+}
+
+impl std::error::Error for ComponentError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            ComponentError::ValidationError(err) => Some(err),
+        }
+    }
+}
+
 impl From<PropValidationError> for ComponentError {
     fn from(err: PropValidationError) -> Self {
         Self::ValidationError(err)
@@ -231,7 +266,7 @@ impl From<PropValidationError> for ComponentError {
 // Component trait
 pub trait Component {
     type Props;
-    
+
     fn create(props: Self::Props, context: Context) -> Self;
     fn update(&mut self, props: Self::Props) -> Result<(), ComponentError>;
     fn render(&self) -> Result<Vec<Node>, ComponentError>;
@@ -286,17 +321,17 @@ impl Component for Button {
 
         // In our simplified example, we don't have actual event delegation
         // But we'll simulate the concept
-        
+
         // Simulate capturing phase
         println!("Capturing phase: would handle button clicks here");
-        
+
         // Simulate bubbling phase
         println!("Bubbling phase: Button clicked!");
-        
+
         // Update click count
         let current = self.click_count.get();
         self.click_count.set(current + 1);
-        
+
         // Here we would call the on_click callback if provided
         if let Some(on_click) = &self.props.on_click {
             let event = MouseEvent {
@@ -307,13 +342,13 @@ impl Component for Button {
             };
             on_click.call(event);
         }
-        
+
         // Example of stopping propagation (in real implementation)
         if self.props.disabled {
             println!("Button is disabled, would stop propagation");
             // In a real implementation: event.stop_propagation(), event.prevent_default()
         }
-        
+
         Ok(vec![node])
     }
 

@@ -44,14 +44,15 @@ fn main() {
         disabled: false,
         size: "large".to_string(),
     };
-    
-    println!("Basic props: label={}, disabled={}, size={}", 
-             basic_props.label, basic_props.disabled, basic_props.size);
+
+    println!(
+        "Basic props: label={}, disabled={}, size={}",
+        basic_props.label, basic_props.disabled, basic_props.size
+    );
 
     // Using builder pattern with validation
-    let props_builder = ButtonProps::builder()
-        .with_validator(ButtonPropsValidator);
-    
+    let props_builder = ButtonProps::builder().with_validator(ButtonPropsValidator);
+
     // Build the props with validation
     match props_builder.build() {
         Ok(props) => {
@@ -69,8 +70,9 @@ fn main() {
         size: "medium".to_string(),
         onclick: "handleClick".to_string(),
     };
-    
-    println!("Advanced props: label={}, disabled={}, size={}, onclick={}", 
-             advanced_props.label, advanced_props.disabled, 
-             advanced_props.size, advanced_props.onclick);
+
+    println!(
+        "Advanced props: label={}, disabled={}, size={}, onclick={}",
+        advanced_props.label, advanced_props.disabled, advanced_props.size, advanced_props.onclick
+    );
 }
