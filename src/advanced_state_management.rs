@@ -1,19 +1,22 @@
 //! Example demonstrating advanced state management patterns in OrbitRS
-//! Shows reactive state with derived values, computed properties, and shared state
+//! Shows thread-safe state with derived values, computed properties, and shared state
+//! 
+//! NOTE: This example is temporarily using direct thread-safe primitives while the reactive system
+//! is being redesigned. It will be updated to use the new reactive system once it supports
+//! thread-safe operations.
 
 use orbit::component::{Component, ComponentError, Context, Node};
-use orbit::state::ThreadSafeSignal;
 use std::sync::{Arc, Mutex, RwLock};
 
-// A simple counter with advanced reactive state features
+// A simple counter with advanced state management features
 struct AdvancedCounter {
     context: Context,
     // Base counter state using thread-safe RwLock
     count: Arc<RwLock<i32>>,
-    // Thread-safe state for square
-    square: Arc<ThreadSafeSignal<i32>>,
-    // Thread-safe state for is_even
-    is_even: Arc<ThreadSafeSignal<bool>>,
+    // Derived state for square value
+    square: Arc<RwLock<i32>>,
+    // Derived state for is_even
+    is_even: Arc<RwLock<bool>>,
     // Shared state that could be accessed from other components
     shared_total: Arc<Mutex<i32>>,
 }
@@ -29,15 +32,15 @@ impl Component for AdvancedCounter {
     type Props = CounterProps;
 
     fn create(props: Self::Props, context: Context) -> Self {
-        // Initialize base state
+        // Initialize base state with thread-safe containers
         let count = Arc::new(RwLock::new(props.initial));
-
+        
         // Calculate initial square value
         let initial_square = props.initial * props.initial;
-
-        // Create thread-safe signals with initial values
-        let square = ThreadSafeSignal::new(initial_square);
-        let is_even = ThreadSafeSignal::new(initial_square % 2 == 0);
+        let square = Arc::new(RwLock::new(initial_square));
+        
+        // Calculate if even
+        let is_even = Arc::new(RwLock::new(initial_square % 2 == 0));
 
         Self {
             context,
@@ -53,16 +56,21 @@ impl Component for AdvancedCounter {
             "AdvancedCounter initialized with count: {}",
             self.get_count().unwrap()
         );
-        println!("Square value: {}", self.square.get().unwrap_or(-1));
-        println!("Is even: {}", self.is_even.get().unwrap_or(false));
+        println!("Square value: {}", self.get_square().unwrap());
+        println!("Is even: {}", self.is_square_even().unwrap());
 
-        // Register lifecycle hooks
-        let is_even = self.is_even.clone();
+        // Register lifecycle hooks using clone of Arc references
+        let count_for_hook = self.count.clone();
+        let square_for_hook = self.square.clone();
+        let is_even_for_hook = self.is_even.clone();
+        
         self.context.on_update(move |_| {
-            println!(
-                "Component updated, is_even: {}",
-                is_even.get().unwrap_or(false)
-            );
+            if let Ok(count) = count_for_hook.read() {
+                println!("Component updated, count: {}", *count);
+                if let (Ok(square), Ok(is_even)) = (square_for_hook.read(), is_even_for_hook.read()) {
+                    println!("Square: {}, is_even: {}", *square, *is_even);
+                }
+            }
         });
 
         Ok(())
@@ -74,19 +82,17 @@ impl Component for AdvancedCounter {
 
             // Update the square value manually
             let square_value = props.initial * props.initial;
-            if let Err(e) = self.square.set(square_value) {
-                return Err(ComponentError::UpdateError(format!(
-                    "Failed to update square: {}",
-                    e
-                )));
+            if let Ok(mut square) = self.square.write() {
+                *square = square_value;
+            } else {
+                return Err(ComponentError::UpdateError("Failed to update square".into()));
             }
 
             // Update is_even manually
-            if let Err(e) = self.is_even.set(square_value % 2 == 0) {
-                return Err(ComponentError::UpdateError(format!(
-                    "Failed to update is_even: {}",
-                    e
-                )));
+            if let Ok(mut is_even) = self.is_even.write() {
+                *is_even = square_value % 2 == 0;
+            } else {
+                return Err(ComponentError::UpdateError("Failed to update is_even".into()));
             }
         } else {
             return Err(ComponentError::UpdateError("Failed to update count".into()));
@@ -99,8 +105,19 @@ impl Component for AdvancedCounter {
         // In a real app, this would render DOM nodes
         println!("Rendering AdvancedCounter:");
         println!("  Count: {}", self.get_count().unwrap());
-        println!("  Square: {}", self.square.get().unwrap_or(-1));
-        println!("  Is even: {}", self.is_even.get().unwrap_or(false));
+        
+        // Use proper RwLock::read() method instead of non-existent get() method
+        if let Ok(square) = self.square.read() {
+            println!("  Square: {}", *square);
+        } else {
+            println!("  Square: [error reading value]");
+        }
+        
+        if let Ok(is_even) = self.is_even.read() {
+            println!("  Is even: {}", *is_even);
+        } else {
+            println!("  Is even: [error reading value]");
+        }
 
         Ok(vec![])
     }
@@ -125,10 +142,18 @@ impl AdvancedCounter {
                 *total += 1;
             }
 
-            // Manually update the signals
+            // Manually update the derived values
             let new_square = *count * *count;
-            let _ = self.square.set(new_square);
-            let _ = self.is_even.set(new_square % 2 == 0);
+            
+            // Update square value
+            if let Ok(mut square) = self.square.write() {
+                *square = new_square;
+            }
+            
+            // Update is_even value
+            if let Ok(mut is_even) = self.is_even.write() {
+                *is_even = new_square % 2 == 0;
+            }
         }
     }
 
@@ -143,10 +168,18 @@ impl AdvancedCounter {
                 *total -= 1;
             }
 
-            // Manually update the signals
+            // Manually update the derived values
             let new_square = *count * *count;
-            let _ = self.square.set(new_square);
-            let _ = self.is_even.set(new_square % 2 == 0);
+            
+            // Update square value
+            if let Ok(mut square) = self.square.write() {
+                *square = new_square;
+            }
+            
+            // Update is_even value
+            if let Ok(mut is_even) = self.is_even.write() {
+                *is_even = new_square % 2 == 0;
+            }
         }
     }
 
@@ -158,20 +191,22 @@ impl AdvancedCounter {
         }
     }
 
-    // Get the square value directly from the ThreadSafeSignal
+    // Get the square value directly from the RwLock
     #[allow(dead_code)]
     pub fn get_square(&self) -> Result<i32, &str> {
-        self.square
-            .get()
-            .map_err(|_| "Failed to read square signal")
+        match self.square.read() {
+            Ok(square) => Ok(*square),
+            Err(_) => Err("Failed to read square value"),
+        }
     }
 
     // Check if the current square value is even
     #[allow(dead_code)]
     pub fn is_square_even(&self) -> Result<bool, &str> {
-        self.is_even
-            .get()
-            .map_err(|_| "Failed to read is_even signal")
+        match self.is_even.read() {
+            Ok(is_even) => Ok(*is_even),
+            Err(_) => Err("Failed to read is_even value"),
+        }
     }
 
     // Get the shared total value
