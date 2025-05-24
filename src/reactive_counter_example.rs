@@ -23,7 +23,7 @@ struct ReactiveCounterProps {
 
 impl Component for ReactiveCounter {
     type Props = ReactiveCounterProps;
-    
+
     fn component_id(&self) -> orbit::component::ComponentId {
         orbit::component::ComponentId::new()
     }
@@ -31,17 +31,21 @@ impl Component for ReactiveCounter {
     fn create(props: Self::Props, context: Context) -> Self {
         // Initialize base state with thread-safe containers
         let count = Arc::new(RwLock::new(props.initial));
-        
+
         // Calculate initial derived values
         let initial_square = props.initial * props.initial;
         let square = Arc::new(RwLock::new(initial_square));
-        
+
         // Calculate if even
         let is_even = Arc::new(RwLock::new(initial_square % 2 == 0));
 
         // Log initial state (replacing the effect)
-        println!("Initial counter state: value={}, square={}, is_even={}", 
-                 props.initial, initial_square, initial_square % 2 == 0);
+        println!(
+            "Initial counter state: value={}, square={}, is_even={}",
+            props.initial,
+            initial_square,
+            initial_square % 2 == 0
+        );
 
         Self {
             context,
@@ -56,13 +60,13 @@ impl Component for ReactiveCounter {
             Ok(guard) => *guard,
             Err(_) => return Err(ComponentError::MountError("Failed to read count".into())),
         };
-        
+
         println!("ReactiveCounter initialized with count: {}", count);
-        
+
         if let Ok(square) = self.square.read() {
             println!("Square value: {}", *square);
         }
-        
+
         if let Ok(is_even) = self.is_even.read() {
             println!("Is even: {}", *is_even);
         }
@@ -74,22 +78,26 @@ impl Component for ReactiveCounter {
         // Update the count value
         if let Ok(mut count) = self.count.write() {
             *count = props.initial;
-            
+
             // Update derived values
             let new_square = props.initial * props.initial;
-            
+
             if let Ok(mut square) = self.square.write() {
                 *square = new_square;
             } else {
-                return Err(ComponentError::UpdateError("Failed to update square".into()));
+                return Err(ComponentError::UpdateError(
+                    "Failed to update square".into(),
+                ));
             }
-            
+
             if let Ok(mut is_even) = self.is_even.write() {
                 *is_even = new_square % 2 == 0;
             } else {
-                return Err(ComponentError::UpdateError("Failed to update is_even".into()));
+                return Err(ComponentError::UpdateError(
+                    "Failed to update is_even".into(),
+                ));
             }
-            
+
             Ok(())
         } else {
             Err(ComponentError::UpdateError("Failed to update count".into()))
@@ -99,17 +107,17 @@ impl Component for ReactiveCounter {
     fn render(&self) -> Result<Vec<Node>, ComponentError> {
         // In a real app, this would render DOM nodes
         println!("Rendering ReactiveCounter:");
-        
+
         match self.count.read() {
             Ok(count) => println!("  Count: {}", *count),
             Err(_) => println!("  Count: [error reading value]"),
         }
-        
+
         match self.square.read() {
             Ok(square) => println!("  Square: {}", *square),
             Err(_) => println!("  Square: [error reading value]"),
         }
-        
+
         match self.is_even.read() {
             Ok(is_even) => println!("  Is even: {}", *is_even),
             Err(_) => println!("  Is even: [error reading value]"),
@@ -132,21 +140,25 @@ impl ReactiveCounter {
     pub fn increment(&self) -> Result<(), ComponentError> {
         if let Ok(mut count) = self.count.write() {
             *count += 1;
-            
+
             // Update derived values
             let new_square = *count * *count;
-            
+
             if let Ok(mut square) = self.square.write() {
                 *square = new_square;
-                
+
                 if let Ok(mut is_even) = self.is_even.write() {
                     *is_even = new_square % 2 == 0;
                     Ok(())
                 } else {
-                    Err(ComponentError::UpdateError("Failed to update is_even".into()))
+                    Err(ComponentError::UpdateError(
+                        "Failed to update is_even".into(),
+                    ))
                 }
             } else {
-                Err(ComponentError::UpdateError("Failed to update square".into()))
+                Err(ComponentError::UpdateError(
+                    "Failed to update square".into(),
+                ))
             }
         } else {
             Err(ComponentError::UpdateError("Failed to update count".into()))
@@ -157,21 +169,25 @@ impl ReactiveCounter {
     pub fn decrement(&self) -> Result<(), ComponentError> {
         if let Ok(mut count) = self.count.write() {
             *count -= 1;
-            
+
             // Update derived values
             let new_square = *count * *count;
-            
+
             if let Ok(mut square) = self.square.write() {
                 *square = new_square;
-                
+
                 if let Ok(mut is_even) = self.is_even.write() {
                     *is_even = new_square % 2 == 0;
                     Ok(())
                 } else {
-                    Err(ComponentError::UpdateError("Failed to update is_even".into()))
+                    Err(ComponentError::UpdateError(
+                        "Failed to update is_even".into(),
+                    ))
                 }
             } else {
-                Err(ComponentError::UpdateError("Failed to update square".into()))
+                Err(ComponentError::UpdateError(
+                    "Failed to update square".into(),
+                ))
             }
         } else {
             Err(ComponentError::UpdateError("Failed to update count".into()))
