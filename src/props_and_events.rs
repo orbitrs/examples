@@ -1,74 +1,10 @@
 //! Example demonstrating the enhanced props and event handling system
 
-use std::any::Any;
-use std::cell::Cell;
+use orbit::prelude::*;
 use std::collections::HashMap;
-use std::sync::Arc;
 
-// Import the minimum required from orbit
-#[cfg(feature = "desktop")]
-use orbit::prelude::MouseButton;
-
-// Fallback for when desktop feature is not available
-#[cfg(not(feature = "desktop"))]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum MouseButton {
-    Left,
-    Right,
-    Middle,
-}
-
-// We'll use a simple Callback type for the example
-#[derive(Clone)]
-pub struct Callback<T> {
-    f: Arc<dyn Fn(T) + Send + Sync>,
-}
-
-impl<T> std::fmt::Debug for Callback<T> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Callback")
-            .field("f", &"<function>")
-            .finish()
-    }
-}
-
-impl<T: Clone + 'static> Callback<T> {
-    pub fn new<F>(f: F) -> Self
-    where
-        F: Fn(T) + Send + Sync + 'static,
-    {
-        Self { f: Arc::new(f) }
-    }
-
-    pub fn call(&self, value: T) {
-        (self.f)(value);
-    }
-}
-
-// We'll use a simplified State type that's thread-safe
-#[derive(Clone)]
-pub struct State<T> {
-    value: Arc<Cell<T>>,
-}
-
-impl<T: Copy + 'static> State<T> {
-    pub fn new(initial: T) -> Self {
-        Self {
-            value: Arc::new(Cell::new(initial)),
-        }
-    }
-
-    pub fn get(&self) -> T {
-        self.value.get()
-    }
-
-    pub fn set(&self, new_value: T) {
-        self.value.set(new_value);
-    }
-}
-
-// Define a MouseEvent struct for our example
-#[derive(Clone, Debug)]
+// Define a custom MouseEvent for the example since it's not available in the framework prelude
+#[derive(Debug, Clone)]
 pub struct MouseEvent {
     pub x: f32,
     pub y: f32,
@@ -76,8 +12,7 @@ pub struct MouseEvent {
     pub event_type: MouseEventType,
 }
 
-// Define event types
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MouseEventType {
     Down,
     Up,
@@ -88,61 +23,7 @@ pub enum MouseEventType {
     DoubleClick,
 }
 
-// Define a simplified Node struct for our example
-pub struct Node {
-    pub attributes: HashMap<String, String>,
-    pub children: Vec<Node>,
-}
-
-impl Default for Node {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Node {
-    pub fn new() -> Self {
-        Self {
-            attributes: HashMap::new(),
-            children: Vec::new(),
-        }
-    }
-
-    pub fn add_child(&mut self, child: Node) {
-        self.children.push(child);
-    }
-
-    pub fn children(&self) -> &[Node] {
-        &self.children
-    }
-}
-
-// Define a simple DelegatedEvent wrapper for our example
-pub struct DelegatedEvent<T> {
-    pub event: T,
-    propagation_stopped: bool,
-    default_prevented: bool,
-}
-
-impl<T: Clone> DelegatedEvent<T> {
-    pub fn new(event: T) -> Self {
-        Self {
-            event,
-            propagation_stopped: false,
-            default_prevented: false,
-        }
-    }
-
-    pub fn stop_propagation(&mut self) {
-        self.propagation_stopped = true;
-    }
-
-    pub fn prevent_default(&mut self) {
-        self.default_prevented = true;
-    }
-}
-
-// Define our own ButtonProps for simplicity
+// Define our ButtonProps for the example
 #[derive(Clone, Debug)]
 pub struct ButtonProps {
     pub label: String,
@@ -150,6 +31,8 @@ pub struct ButtonProps {
     pub primary: bool,
     pub on_click: Option<Callback<MouseEvent>>,
 }
+
+// ButtonProps automatically implements Props via the blanket impl in the framework
 
 impl Default for ButtonProps {
     fn default() -> Self {
@@ -190,122 +73,9 @@ impl ButtonProps {
     }
 }
 
-// ValidationError type
-#[derive(Debug)]
-pub enum PropValidationError {
-    InvalidValue { name: String, reason: String },
-}
-
-impl std::fmt::Display for PropValidationError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            PropValidationError::InvalidValue { name, reason } => {
-                write!(f, "Invalid value for '{}': {}", name, reason)
-            }
-        }
-    }
-}
-
-impl std::error::Error for PropValidationError {}
-
-// Validator trait
-pub trait PropValidator<P> {
-    fn validate(&self, props: &P) -> Result<(), PropValidationError>;
-}
-
-// Create a validator for ButtonProps
-#[allow(dead_code)] // Used in example code below
-struct ButtonPropsValidator;
-
-impl PropValidator<ButtonProps> for ButtonPropsValidator {
-    fn validate(&self, props: &ButtonProps) -> Result<(), PropValidationError> {
-        if props.label.is_empty() {
-            return Err(PropValidationError::InvalidValue {
-                name: "label".to_string(),
-                reason: "Button label cannot be empty".to_string(),
-            });
-        }
-        Ok(())
-    }
-}
-
-// Simple Context struct
-pub struct Context;
-
-impl Default for Context {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Context {
-    pub fn new() -> Self {
-        Self {}
-    }
-
-    pub fn with_parent(_parent: &Context) -> Self {
-        Self {}
-    }
-
-    pub fn on_mount<F>(&self, f: F)
-    where
-        F: FnOnce(&Context) + 'static,
-    {
-        f(self);
-    }
-
-    pub fn on_unmount<F>(&self, _f: F)
-    where
-        F: FnOnce(&Context) + 'static,
-    {
-        // This would be called when component is unmounted
-    }
-}
-
-// Component error type
-#[derive(Debug)]
-pub enum ComponentError {
-    ValidationError(PropValidationError),
-}
-
-impl std::fmt::Display for ComponentError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            ComponentError::ValidationError(err) => {
-                write!(f, "Component validation error: {}", err)
-            }
-        }
-    }
-}
-
-impl std::error::Error for ComponentError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            ComponentError::ValidationError(err) => Some(err),
-        }
-    }
-}
-
-impl From<PropValidationError> for ComponentError {
-    fn from(err: PropValidationError) -> Self {
-        Self::ValidationError(err)
-    }
-}
-
-// Component trait
-pub trait Component {
-    type Props;
-
-    fn create(props: Self::Props, context: Context) -> Self;
-    fn update(&mut self, props: Self::Props) -> Result<(), ComponentError>;
-    fn render(&self) -> Result<Vec<Node>, ComponentError>;
-    fn as_any(&self) -> &dyn Any;
-    fn as_any_mut(&mut self) -> &mut dyn Any;
-}
-
-/// Button component with enhanced props and event handling
+// Button component with enhanced props and event handling
 pub struct Button {
-    #[allow(dead_code)] // Context would be used in a real component for lifecycle events
+    id: ComponentId,
     context: Context,
     props: ButtonProps,
     click_count: State<i32>,
@@ -314,32 +84,40 @@ pub struct Button {
 impl Component for Button {
     type Props = ButtonProps;
 
+    fn component_id(&self) -> ComponentId {
+        self.id
+    }
+
     fn create(props: Self::Props, context: Context) -> Self {
-        // Create a state to track clicks (thread-safe)
+        // Create a state to track clicks
         let click_count = State::new(0);
 
-        // Register a mount callback
-        context.on_mount(|_| {
-            println!("Button mounted!");
-        });
-
         Self {
+            id: ComponentId::new(),
             context,
             props,
             click_count,
         }
     }
 
-    fn update(&mut self, props: Self::Props) -> Result<(), ComponentError> {
-        self.props = props;
+    fn initialize(&mut self) -> Result<(), ComponentError> {
+        println!("Button initialized with label: {}", self.props.label);
         Ok(())
     }
 
-    fn render(&self) -> Result<Vec<Node>, ComponentError> {
+    fn mount(&mut self) -> Result<(), ComponentError> {
+        println!("Button mounted!");
+        Ok(())
+    }
+
+    fn update(&mut self, props: Self::Props) -> Result<(), ComponentError> {
+        self.props = props;
+        Ok(())
+    }    fn render(&self) -> Result<Vec<Node>, ComponentError> {
         // Create a simple node
         let mut node = Node::new();
 
-        // Add attributes
+        // Add attributes based on props
         node.attributes.insert(
             "class".to_string(),
             format!(
@@ -349,77 +127,88 @@ impl Component for Button {
             ),
         );
 
-        // In our simplified example, we don't have actual event delegation
-        // But we'll simulate the concept
-
-        // Simulate capturing phase
-        println!("Capturing phase: would handle button clicks here");
-
-        // Simulate bubbling phase
-        println!("Bubbling phase: Button clicked!");
-
-        // Update click count
-        let current = self.click_count.get();
-        self.click_count.set(current + 1);
-
-        // Here we would call the on_click callback if provided
-        if let Some(on_click) = &self.props.on_click {
-            let event = MouseEvent {
-                x: 100.0,
-                y: 100.0,
-                button: MouseButton::Left,
-                event_type: MouseEventType::Click,
-            };
-            on_click.call(event);
+        node.attributes.insert("label".to_string(), self.props.label.clone());
+        
+        if self.props.disabled {
+            node.attributes.insert("disabled".to_string(), "true".to_string());
         }
 
-        // Example of stopping propagation (in real implementation)
-        if self.props.disabled {
-            println!("Button is disabled, would stop propagation");
-            // In a real implementation: event.stop_propagation(), event.prevent_default()
+        // Add click count as an attribute (for demonstration)
+        node.attributes.insert(
+            "data-click-count".to_string(), 
+            self.click_count.get().unwrap_or(0).to_string()
+        );
+
+        // In a real implementation, we would handle event registration through the framework
+        // For now, we'll simulate the click handling in the render output
+        if let Some(_on_click) = &self.props.on_click {
+            println!("Button has click handler registered");
+            
+            // Simulate a click event for demonstration
+            if !self.props.disabled {
+                let current_count = self.click_count.get().unwrap_or(0);
+                println!("Button can be clicked (current count: {})", current_count);
+            }
         }
 
         Ok(vec![node])
     }
 
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 
-    fn as_any_mut(&mut self) -> &mut dyn Any {
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
 }
 
 /// A form component that demonstrates parent-child communication
 pub struct Form {
+    id: ComponentId,
     context: Context,
-    #[allow(dead_code)] // Would be used in a complete form implementation
     submitted: State<bool>,
 }
 
 impl Component for Form {
     type Props = ();
 
+    fn component_id(&self) -> ComponentId {
+        self.id
+    }
+
     fn create(_props: Self::Props, context: Context) -> Self {
-        // Create a state for form submission state (thread-safe)
+        // Create a state for form submission state
         let submitted = State::new(false);
 
-        Self { context, submitted }
+        Self { 
+            id: ComponentId::new(),
+            context, 
+            submitted 
+        }
+    }
+
+    fn initialize(&mut self) -> Result<(), ComponentError> {
+        println!("Form initialized");
+        Ok(())
+    }
+
+    fn mount(&mut self) -> Result<(), ComponentError> {
+        println!("Form mounted!");
+        Ok(())
     }
 
     fn update(&mut self, _props: Self::Props) -> Result<(), ComponentError> {
         Ok(())
-    }
-
-    fn render(&self) -> Result<Vec<Node>, ComponentError> {
+    }    fn render(&self) -> Result<Vec<Node>, ComponentError> {
         // Create form node
         let mut form_node = Node::new();
+        form_node.attributes.insert("tag".to_string(), "form".to_string());
 
-        // Create a context for the button
+        // Create a child context for the button
         let button_context = Context::with_parent(&self.context);
 
-        // Create ButtonProps
+        // Create ButtonProps using the framework's Callback
         let button_props = ButtonProps::new()
             .label("Submit".to_string())
             .primary(true)
@@ -441,35 +230,48 @@ impl Component for Form {
         Ok(vec![form_node])
     }
 
-    fn as_any(&self) -> &dyn Any {
+    fn as_any(&self) -> &dyn std::any::Any {
         self
     }
 
-    fn as_any_mut(&mut self) -> &mut dyn Any {
+    fn as_any_mut(&mut self) -> &mut dyn std::any::Any {
         self
     }
 }
 
-/// Main function
+/// Main function demonstrating the real orbit framework component usage
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("Props and Event Handling Example");
+    println!("Props and Event Handling Example with Real Orbit Framework");
 
-    // Create a context
+    // Create a context using the framework
     let context = Context::new();
 
-    // Create a form
-    let form = Form::create((), context);
+    // Create a form component
+    let mut form = Form::create((), context);
+
+    // Initialize and mount the form (following component lifecycle)
+    form.initialize()?;
+    form.mount()?;
 
     // Render the form
     let form_nodes = form.render()?;
 
     println!("Form rendered successfully with {} nodes", form_nodes.len());
 
-    // Print node tree (simplified)
+    // Print node tree with more details
     println!("Node tree:");
     for (i, node) in form_nodes.iter().enumerate() {
         println!("  Node {}: {} children", i, node.children().len());
+        println!("    Attributes: {:?}", node.attributes);
+        
+        // Print child details
+        for (j, child) in node.children().iter().enumerate() {
+            println!("    Child {}: {:?}", j, child.attributes);
+        }
     }
+
+    // Demonstrate component lifecycle
+    println!("\nComponent ID: {:?}", form.component_id());
 
     Ok(())
 }

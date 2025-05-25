@@ -6,7 +6,8 @@ publish = false
 
 [features]
 default = []
-desktop = ["orbit/desktop"]
+desktop = ["orbit/desktop-no-skia"]  # Use non-Skia desktop for now
+desktop-skia = ["orbit/desktop"]      # Full desktop with Skia when working
 web = ["orbit/web"]
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
