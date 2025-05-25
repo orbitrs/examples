@@ -61,7 +61,7 @@ impl Component for Counter {
             }
         };
 
-        println!("Counter component initialized with count {}", count);
+        println!("Counter component initialized with count {count}");
 
         // Since Context doesn't have lifecycle hook registration methods,
         // we'll just print the messages directly
@@ -123,7 +123,7 @@ impl Component for Counter {
             }
         };
 
-        println!("Counter.after_update() called, count is now {}", count);
+        println!("Counter.after_update() called, count is now {count}");
         Ok(())
     }
 
@@ -227,7 +227,7 @@ fn main() {
     let counter_props = CounterProps {
         initial: 0,
         on_change: Some(Box::new(|n| {
-            println!("onChange callback: count is now {}", n)
+            println!("onChange callback: count is now {n}")
         })),
     };
 
@@ -267,7 +267,7 @@ fn main() {
     let new_props = CounterProps {
         initial: 10,
         on_change: Some(Box::new(|n| {
-            println!("New onChange callback: count is now {}", n)
+            println!("New onChange callback: count is now {n}")
         })),
     };
 
