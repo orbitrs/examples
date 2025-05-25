@@ -5,7 +5,7 @@ edition = "2021"
 publish = false
 
 [features]
-default = []
+default = ["orbit/wgpu"]
 desktop = ["orbit/desktop-no-skia"]  # Use non-Skia desktop for now
 desktop-skia = ["orbit/desktop"]      # Full desktop with Skia when working
 web = ["orbit/web"]
