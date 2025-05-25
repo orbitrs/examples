@@ -78,6 +78,7 @@ impl ButtonProps {
 // Button component with enhanced props and event handling
 pub struct Button {
     id: ComponentId,
+    #[allow(dead_code)]
     context: orbit::component::Context,
     props: ButtonProps,
     click_count: Signal<i32>,
@@ -170,6 +171,7 @@ impl Component for Button {
 pub struct Form {
     id: ComponentId,
     context: orbit::component::Context,
+    #[allow(dead_code)]
     submitted: Signal<bool>,
 }
 
