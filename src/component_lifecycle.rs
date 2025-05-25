@@ -181,7 +181,7 @@ impl Counter {
                 }
             }
             Err(e) => {
-                eprintln!("Failed to increment counter: {:?}", e);
+                eprintln!("Failed to increment counter: {e:?}");
             }
         }
     }
@@ -201,7 +201,7 @@ impl Counter {
                 }
             }
             Err(e) => {
-                eprintln!("Failed to decrement counter: {:?}", e);
+                eprintln!("Failed to decrement counter: {e:?}");
             }
         }
     }
