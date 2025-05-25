@@ -6,7 +6,17 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 // Import the minimum required from orbit
+#[cfg(feature = "desktop")]
 use orbit::prelude::MouseButton;
+
+// Fallback for when desktop feature is not available
+#[cfg(not(feature = "desktop"))]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MouseButton {
+    Left,
+    Right,
+    Middle,
+}
 
 // We'll use a simple Callback type for the example
 #[derive(Clone)]
