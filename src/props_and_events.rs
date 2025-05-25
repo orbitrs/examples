@@ -1,7 +1,9 @@
 //! Example demonstrating the enhanced props and event handling system
 
-use orbit::prelude::*;
-use std::collections::HashMap;
+use orbit::component::{ComponentId, Node}; // Import Node from component module (now correctly exported)
+use orbit::prelude::{create_signal, Callback, Component, ComponentError, Signal}; // Import specific items from prelude
+use orbit::state::ReactiveScope; // Import ReactiveScope from state module
+use winit::event::MouseButton;
 
 // Define a custom MouseEvent for the example since it's not available in the framework prelude
 #[derive(Debug, Clone)]
@@ -24,7 +26,7 @@ pub enum MouseEventType {
 }
 
 // Define our ButtonProps for the example
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct ButtonProps {
     pub label: String,
     pub disabled: bool,
@@ -76,9 +78,9 @@ impl ButtonProps {
 // Button component with enhanced props and event handling
 pub struct Button {
     id: ComponentId,
-    context: Context,
+    context: orbit::component::Context,
     props: ButtonProps,
-    click_count: State<i32>,
+    click_count: Signal<i32>,
 }
 
 impl Component for Button {
@@ -87,10 +89,10 @@ impl Component for Button {
     fn component_id(&self) -> ComponentId {
         self.id
     }
-
-    fn create(props: Self::Props, context: Context) -> Self {
-        // Create a state to track clicks
-        let click_count = State::new(0);
+    fn create(props: Self::Props, context: orbit::component::Context) -> Self {
+        // Create a reactive signal to track clicks
+        let scope = ReactiveScope::new();
+        let click_count = create_signal(&scope, 0);
 
         Self {
             id: ComponentId::new(),
@@ -113,12 +115,13 @@ impl Component for Button {
     fn update(&mut self, props: Self::Props) -> Result<(), ComponentError> {
         self.props = props;
         Ok(())
-    }    fn render(&self) -> Result<Vec<Node>, ComponentError> {
+    }
+    fn render(&self) -> Result<Vec<Node>, ComponentError> {
         // Create a simple node
-        let mut node = Node::new();
+        let mut node = Node::default();
 
-        // Add attributes based on props
-        node.attributes.insert(
+        // Add attributes based on props using the add_attribute method
+        node.add_attribute(
             "class".to_string(),
             format!(
                 "button {} {}",
@@ -127,26 +130,26 @@ impl Component for Button {
             ),
         );
 
-        node.attributes.insert("label".to_string(), self.props.label.clone());
-        
+        node.add_attribute("label".to_string(), self.props.label.clone());
+
         if self.props.disabled {
-            node.attributes.insert("disabled".to_string(), "true".to_string());
+            node.add_attribute("disabled".to_string(), "true".to_string());
         }
 
         // Add click count as an attribute (for demonstration)
-        node.attributes.insert(
-            "data-click-count".to_string(), 
-            self.click_count.get().unwrap_or(0).to_string()
+        node.add_attribute(
+            "data-click-count".to_string(),
+            self.click_count.get().to_string(),
         );
 
         // In a real implementation, we would handle event registration through the framework
         // For now, we'll simulate the click handling in the render output
         if let Some(_on_click) = &self.props.on_click {
             println!("Button has click handler registered");
-            
+
             // Simulate a click event for demonstration
             if !self.props.disabled {
-                let current_count = self.click_count.get().unwrap_or(0);
+                let current_count = self.click_count.get();
                 println!("Button can be clicked (current count: {})", current_count);
             }
         }
@@ -166,8 +169,8 @@ impl Component for Button {
 /// A form component that demonstrates parent-child communication
 pub struct Form {
     id: ComponentId,
-    context: Context,
-    submitted: State<bool>,
+    context: orbit::component::Context,
+    submitted: Signal<bool>,
 }
 
 impl Component for Form {
@@ -176,15 +179,15 @@ impl Component for Form {
     fn component_id(&self) -> ComponentId {
         self.id
     }
+    fn create(_props: Self::Props, context: orbit::component::Context) -> Self {
+        // Create a reactive signal for form submission state
+        let scope = ReactiveScope::new();
+        let submitted = create_signal(&scope, false);
 
-    fn create(_props: Self::Props, context: Context) -> Self {
-        // Create a state for form submission state
-        let submitted = State::new(false);
-
-        Self { 
+        Self {
             id: ComponentId::new(),
-            context, 
-            submitted 
+            context,
+            submitted,
         }
     }
 
@@ -200,13 +203,14 @@ impl Component for Form {
 
     fn update(&mut self, _props: Self::Props) -> Result<(), ComponentError> {
         Ok(())
-    }    fn render(&self) -> Result<Vec<Node>, ComponentError> {
+    }
+    fn render(&self) -> Result<Vec<Node>, ComponentError> {
         // Create form node
-        let mut form_node = Node::new();
-        form_node.attributes.insert("tag".to_string(), "form".to_string());
+        let mut form_node = Node::default();
+        form_node.add_attribute("tag".to_string(), "form".to_string());
 
         // Create a child context for the button
-        let button_context = Context::with_parent(&self.context);
+        let button_context = self.context.clone();
 
         // Create ButtonProps using the framework's Callback
         let button_props = ButtonProps::new()
@@ -241,10 +245,8 @@ impl Component for Form {
 
 /// Main function demonstrating the real orbit framework component usage
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    println!("Props and Event Handling Example with Real Orbit Framework");
-
-    // Create a context using the framework
-    let context = Context::new();
+    println!("Props and Event Handling Example with Real Orbit Framework"); // Create a context using the framework
+    let context = orbit::component::Context::new();
 
     // Create a form component
     let mut form = Form::create((), context);
@@ -256,17 +258,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Render the form
     let form_nodes = form.render()?;
 
-    println!("Form rendered successfully with {} nodes", form_nodes.len());
-
-    // Print node tree with more details
+    println!("Form rendered successfully with {} nodes", form_nodes.len()); // Print node tree with more details
     println!("Node tree:");
     for (i, node) in form_nodes.iter().enumerate() {
         println!("  Node {}: {} children", i, node.children().len());
-        println!("    Attributes: {:?}", node.attributes);
-        
+
         // Print child details
-        for (j, child) in node.children().iter().enumerate() {
-            println!("    Child {}: {:?}", j, child.attributes);
+        for (j, _child) in node.children().iter().enumerate() {
+            println!("    Child {}", j);
         }
     }
 
